@@ -34,6 +34,7 @@ async def run(
     num_speculative_tokens: int,
     timeout: float,
     tokenizer_name: str | None,
+    draft_model: str | None,
 ) -> None:
     config = ClientConfig(
         server_address=server,
@@ -41,6 +42,7 @@ async def run(
         num_speculative_tokens=num_speculative_tokens,
         timeout=timeout,
         tokenizer_name=tokenizer_name,
+        **({"draft_model": draft_model} if draft_model is not None else {}),
     )
 
     async with FaultTolerantClient(config) as client:
@@ -77,6 +79,16 @@ def main() -> int:
         help="Client-side draft proposer.",
     )
     parser.add_argument(
+        "--draft-model",
+        default=None,
+        help=(
+            "HuggingFace model id for the EAGLE draft proposer. Must share a "
+            "vocabulary with the target model for rejection sampling to be "
+            "valid (e.g. target=gpt2 → draft=distilgpt2 / gpt2-medium). "
+            "Ignored when --draft-method is ngram or suffix."
+        ),
+    )
+    parser.add_argument(
         "--num-speculative-tokens",
         type=int,
         default=5,
@@ -109,6 +121,7 @@ def main() -> int:
                 num_speculative_tokens=args.num_speculative_tokens,
                 timeout=args.timeout,
                 tokenizer_name=args.tokenizer,
+                draft_model=args.draft_model,
             )
         )
     except KeyboardInterrupt:

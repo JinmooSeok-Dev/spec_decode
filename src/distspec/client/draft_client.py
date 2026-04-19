@@ -359,13 +359,21 @@ class DraftClient:
                 )
 
             # 5. 수락된 토큰 yield
+            #    A single speculation step can return several tokens at once
+            #    (accepted + bonus). Check max_tokens on every yield so we stop
+            #    exactly at the user's budget instead of overshooting by the
+            #    leftover batch.
             for token_id in response.accepted_tokens:
+                if generated_count >= sampling_params.max_tokens:
+                    return
                 yield self.tokenizer.decode([token_id])
                 context_tokens.append(token_id)
                 generated_count += 1
 
             # 6. Bonus 토큰 yield
             if response.bonus_token is not None:
+                if generated_count >= sampling_params.max_tokens:
+                    return
                 yield self.tokenizer.decode([response.bonus_token])
                 context_tokens.append(response.bonus_token)
                 generated_count += 1
