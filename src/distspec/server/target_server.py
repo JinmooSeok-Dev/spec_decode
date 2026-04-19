@@ -334,12 +334,40 @@ class TargetServer:
 
         # 메트릭 기록
         latency = time.time() - start_time
+        num_draft = len(request.draft_tokens)
+        num_accepted = len(verify_output.accepted_tokens)
+        has_bonus = verify_output.bonus_token is not None
         self.metrics.record(
-            num_draft=len(request.draft_tokens),
-            num_accepted=len(verify_output.accepted_tokens),
-            has_bonus=verify_output.bonus_token is not None,
+            num_draft=num_draft,
+            num_accepted=num_accepted,
+            has_bonus=has_bonus,
             latency=latency,
         )
+
+        # Per-request visibility: lets operators watch acceptance rate, batch
+        # size, and tail latency live without waiting for the shutdown metrics
+        # dump. Keep it at INFO so ``--quiet`` style tooling can mute later.
+        logger.info(
+            "verify client=%s req=%s draft=%d accepted=%d bonus=%s "
+            "latency=%.1fms finished=%s",
+            client_id,
+            request.request_id,
+            num_draft,
+            num_accepted,
+            "yes" if has_bonus else "no",
+            latency * 1000.0,
+            finished,
+        )
+
+        # Periodic rollup: every 50 requests emit the aggregate acceptance
+        # rate so long-running servers don't need SIGINT to see their stats.
+        if self.metrics.total_requests % 50 == 0:
+            logger.info(
+                "metrics: total=%d α=%.1f%% avg_latency=%.1fms",
+                self.metrics.total_requests,
+                self.metrics.avg_acceptance_rate * 100.0,
+                self.metrics.avg_latency_ms,
+            )
 
         return VerifyResponse(
             request_id=request.request_id,
