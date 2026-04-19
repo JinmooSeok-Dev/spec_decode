@@ -127,32 +127,43 @@ Rejection sampling 을 **항상** 수행하는 대신, draft 쪽의 확신도가
 
 ---
 
-## Batched Verification (Phase B 에서 완성)
+## Backend 별 구현 차이
 
-현재 `BatchVerifier` (`target_verifier.py:461-554`) 는 골격만 구현되어 있고, `_process_batch` 는 요청별 순차 `run_in_executor` 로 돌아간다. 진짜 batched target forward 는 다음을 요구한다:
+`verify()` / `verify_batch()` 의 **시그니처는 backend 간 동일**하지만 내부 경로는 다릅니다.
 
-1. 각 요청의 `context + draft` 를 길이가 다른 시퀀스로 패딩
-2. `attention_mask` 로 유효 토큰 표시
-3. 한 번의 target forward 에서 각 요청의 draft 위치 logits 를 추출
-4. 요청별로 별도 `RejectionSampler.forward` 호출
+### HfVerifier (Phase 1)
 
-이 작업이 Phase B 의 첫 번째 항목이다 ([ROADMAP](./ROADMAP.md) 참조).
+- `transformers.AutoModelForCausalLM.from_pretrained(...)` 로 target 로드.
+- 매 verify 호출마다 `context + draft` 전체를 `use_cache=False` 로 forward. 단순/정확성 우선.
+- `verify_batch()` 는 요청들을 `pad_token_id` 로 패딩해 한 번의 forward 로 처리 (`tests/test_batched_verify.py` 로 회귀 방지).
+- 구현: `src/distspec/server/hf_verifier.py`.
 
----
+### VllmVerifier (Phase 2)
 
-## KV Cache 관리
+- `vllm.LLM(model=..., tensor_parallel_size=...)` 로 target 로드. PagedAttention, continuous batching, prefix cache 를 모두 vLLM 이 관리.
+- verify 한 번당 `llm.generate(prompts=context+draft, sampling_params=SamplingParams(max_tokens=1, prompt_logprobs=max(2,K)))`.
+- draft 위치별 target 분포는 **`prompt_logprobs[ctx_len + k]` 의 rank-1 토큰**으로 추출.
+- `verify_batch()` 는 여러 요청의 prompt list 를 한 번에 넘겨 vLLM 스케줄러에 배치 맡김 — 별도 패딩 로직 불필요.
+- **현재 Greedy only**. `temperature > 0` 은 `NotImplementedError` (Phase 2 S2 로 예정).
+- 구현: `src/distspec/server/vllm_verifier.py`. 사용법/튜닝: [VLLM_BACKEND](./VLLM_BACKEND.md).
 
-Rejection 이 발생하면 거절된 draft 토큰의 K/V 는 무효하므로 즉시 잘라내야 한다 (`_truncate_kv_cache`, `target_verifier.py:434-450`):
+### 한눈 비교
 
-```python
-keep_len = len(context_tokens) + num_accepted
-kv_cache = tuple(
-    (k[:, :, :keep_len, :], v[:, :, :keep_len, :])
-    for (k, v) in kv_cache
-)
-```
+| 관점 | HfVerifier | VllmVerifier |
+|---|---|---|
+| Target 실행 | transformers forward | vllm.LLM.generate |
+| KV 관리 | use_cache=False (simplicity) | PagedAttention block table |
+| 배치 | pad+attention_mask로 직접 | 스케줄러에 위임 |
+| Multi-GPU | 미지원 | `tensor_parallel_size=N` |
+| 샘플링 모드 | greedy + random | greedy 전용 (S1) |
+| 의존성 | `[torch]` extra | `[vllm]` extra + CUDA |
+| 전형적 latency (gpt2, 1토큰 verify) | ~200ms | 첫 요청 ~200ms, 이후 5–10ms |
 
-**한계 (Phase 1)**: HF `past_key_values` 튜플을 직접 슬라이싱하므로 **자료구조 변경에 깨지기 쉽고**, **메모리 재사용이 비효율적** (슬라이스 복사 비용). Phase 2 에서 vLLM 의 block table 기반 할당/해제로 교체된다 ([ROADMAP](./ROADMAP.md)).
+### 선택 기준
+
+- **CPU 로 돌리거나 random 모드가 필요** → `--backend hf`
+- **GPU + 처리량/지연 최적화가 필요** → `--backend vllm`
+- **Client / Protocol / FSM / Adaptive K 는 backend 와 무관** — 서버 옵션만 바꾸면 동일 클라이언트로 동작합니다.
 
 ---
 

@@ -44,9 +44,11 @@
 
 **비기능 요구**
 - **동시 100 요청에서 target GPU 활용률 > 80%**. 단일 요청 처리 중에도 다른 요청이 큐잉되어 GPU idle time 을 최소화해야 한다.
-- **Verify batch 처리**: 여러 클라이언트의 draft 검증을 한 번의 target forward 로 묶어 throughput 을 확보 (Phase 1 에서는 `BatchVerifier` 로 준비, 실제 batched forward 는 Phase B 에서 완성).
+- **Verify batch 처리**: 여러 클라이언트의 draft 검증을 한 번의 target forward 로 묶어 throughput 을 확보.
+  - Phase 1 `HfVerifier`: `verify_batch()` 가 직접 패딩 + attention_mask 로 배치.
+  - Phase 2 `VllmVerifier`: vLLM 스케줄러에 여러 요청을 `llm.generate(prompts=[...])` 로 한꺼번에 넘기면 continuous batching + PagedAttention 이 자동 적용됨. GPU 활용률 요구를 backend 가 흡수.
 
-→ 이 요구를 만족시키기 위해 [DESIGN](./DESIGN.md) 의 ZMQ ROUTER 패턴과 `RequestState` 관리가 필요하다.
+→ 이 요구를 만족시키기 위해 [DESIGN](./DESIGN.md) 의 ZMQ ROUTER 패턴 + `RequestState` 관리, 그리고 [VERIFICATION § Backend 별 구현 차이](./VERIFICATION.md#backend-별-구현-차이) 의 backend 선택이 필요하다.
 
 ---
 

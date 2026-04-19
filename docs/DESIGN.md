@@ -8,7 +8,7 @@
 
 ```
 ┌──────────────────────────────── Client Process ───────────────────────────────┐
-│                                                                               │
+│ ``distspec-client`` (CLI entry)                                               │
 │  ┌──────────────────┐   propose()   ┌────────────────────┐                    │
 │  │  DraftProposer   │  ───────────▶ │    DraftClient     │                    │
 │  │  • N-gram        │               │  (ZMQ DEALER)      │                    │
@@ -16,14 +16,12 @@
 │  │  • EAGLE         │               │  + Adaptive K      │                    │
 │  └──────────────────┘               │  + Fault FSM       │                    │
 │                                     └─────────┬──────────┘                    │
-│                                               │                               │
 └───────────────────────────────────────────────┼───────────────────────────────┘
                                                 │  DraftRequest  (msgpack)
                                                 │  ◀ VerifyResponse
                                                 │
 ┌───────────────────────────────────────────────┼───────────────────────────────┐
-│                                  Server Process                               │
-│                                               │                               │
+│ ``distspec-server`` (CLI entry)               │                               │
 │                                     ┌─────────▼──────────┐                    │
 │                                     │    TargetServer    │                    │
 │                                     │  (ZMQ ROUTER)      │                    │
@@ -32,15 +30,20 @@
 │                                     └─────────┬──────────┘                    │
 │                                     verify()  │                               │
 │                                     ┌─────────▼──────────┐                    │
-│                                     │  TargetVerifier    │                    │
-│                                     │  + RejectionSampler│                    │
-│                                     │  + KV truncate     │                    │
-│                                     └────────────────────┘                    │
+│                                     │    BaseVerifier    │  (abstract)        │
+│                                     └───┬────────────┬───┘                    │
+│                                 ┌───────▼────┐  ┌────▼────────┐               │
+│                                 │ HfVerifier │  │ VllmVerifier │              │
+│                                 │ (Phase 1)  │  │ (Phase 2)    │              │
+│                                 │ transformers│  │ vllm.LLM     │             │
+│                                 │ + KV in-mem │  │ PagedAttn    │             │
+│                                 └─────────────┘  └──────────────┘             │
 └───────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Client** = 경량 연산 (draft 생성) + 네트워크 I/O + 상태 기계.
-- **Server** = 무거운 target forward + rejection sampling + per-request 상태 캐시.
+- **Client** = 경량 연산 (draft 생성) + 네트워크 I/O + 상태 기계. `distspec-client` 로 1급 CLI 노출.
+- **Server** = 무거운 target forward + rejection sampling + per-request 상태 캐시. `distspec-server` 로 1급 CLI 노출.
+- **Backend 추상화**: 서버는 `BaseVerifier` 에만 의존하고 실제 실행은 `HfVerifier` (Phase 1, HuggingFace transformers) 또는 `VllmVerifier` (Phase 2, vLLM LLMEngine) 가 담당. `ServerConfig.backend="hf"|"vllm"` 또는 CLI `--backend` 로 선택.
 - 둘 사이에는 ZMQ DEALER ↔ ROUTER 소켓만 놓여 있고, 메시지는 모두 msgpack 으로 직렬화.
 
 ---
@@ -137,7 +140,9 @@ TargetServer:
 
 **`RequestState`**: 각 요청의 `prompt_tokens + generated_tokens` 를 누적. 클라이언트는 첫 요청에만 prompt 를 싣고, 이후 요청은 `draft_tokens` 만 전송 → 네트워크 트래픽 절약.
 
-**KV cache**: `TargetVerifier` 가 하나의 `past_key_values` 를 유지하며, rejection 발생 시 `_truncate_kv_cache(keep_len)` 로 거절 토큰 위치의 K/V 를 잘라낸다.
+**KV cache**: Backend 별로 처리 방식이 다릅니다.
+- **HfVerifier (Phase 1)**: 매 verify 호출마다 `context + draft` 전체를 forward (단순, correctness 우선). Phase 1 의 `_truncate_kv_cache` 는 HF Cache 객체 호환성 이슈로 `use_cache=False` 로 간소화됨.
+- **VllmVerifier (Phase 2)**: vLLM 의 `KVCacheManager` 가 PagedAttention block table 로 KV 를 관리. `enable_prefix_caching=True` 로 연속된 요청의 공통 context 를 재사용하므로 같은 대화에서 두 번째 요청부터는 forward 비용이 극적으로 감소 (실측 246ms → 5ms).
 
 ### 암묵적 전제
 
@@ -152,13 +157,17 @@ TargetServer:
 
 | 디렉토리 | 책임 | 주요 파일 |
 |---|---|---|
-| `prototype/common/` | 데이터 계약 (프로토콜 + 설정 + 공통 로직) | `protocol.py`, `config.py`, `confidence.py` |
-| `prototype/client/` | Draft 생성 + 통신 + FSM | `draft_proposer.py`, `draft_client.py`, `fault_tolerant_client.py`, `confidence_client.py` |
-| `prototype/server/` | Target 모델 로딩 + 검증 + 서빙 | `target_verifier.py`, `target_server.py` |
+| `src/distspec/common/` | 데이터 계약 (프로토콜 + 설정 + sampling 유틸 + confidence) | `protocol.py`, `config.py`, `sampling.py`, `confidence.py` |
+| `src/distspec/client/` | Draft 생성 + 통신 + FSM + CLI | `draft_proposer.py`, `draft_client.py`, `fault_tolerant_client.py`, `confidence_client.py`, `cli.py` |
+| `src/distspec/server/` | 서버 루프 + backend-agnostic verifier 추상화 | `target_server.py`, `base.py`, `hf_verifier.py`, `vllm_verifier.py` |
 
-**핵심 엔트리 포인트**
-- Server 실행: `python -m prototype.server.target_server --model ... --listen-address ...` (`target_server.py:404-441`)
-- Client 사용: `FaultTolerantClient(config)` 를 async context manager 로 → `generate(prompt)` 이 async generator 로 토큰 스트리밍
+**1급 CLI 엔트리 포인트** (`pyproject.toml` 의 `[project.scripts]`):
+- `distspec-server` → `distspec.server.target_server:main` — `--backend {hf,vllm}` 으로 실행 시점에 verifier 선택
+- `distspec-client` → `distspec.client.cli:main` — `--draft-method {ngram,suffix,eagle}` 로 proposer 선택
+
+**프로그래매틱 사용**:
+- 서버: `TargetServer(ServerConfig(backend="vllm", target_model=..., ...))` 를 async context manager 로.
+- 클라이언트: `FaultTolerantClient(ClientConfig(...))` 를 async context manager 로 → `generate(prompt)` 이 async generator 로 토큰 스트리밍.
 
 ---
 
@@ -168,9 +177,10 @@ TargetServer:
 |---|---|---|
 | ZMQ DEALER/ROUTER | multi-client + async 친화, multi-node 확장 가능 | gRPC 대비 스키마 검증 약함 (msgspec 으로 보완) |
 | msgpack over JSON | 이진 포맷, 수치 배열 효율적 | 가독성 낮음 (디버그 시 `jq` 류 툴 안 먹힘) |
-| 서버에 context 누적 | 네트워크 절약 + KV cache 재사용 | sticky routing 필요 (Phase 1 한계) |
-| Per-request KV cache | 단순하고 정확성 확실 | 동시 요청 시 GPU 메모리 증가 — batched KV 는 Phase B |
+| 서버에 context 누적 | 네트워크 절약 + KV cache 재사용 | sticky routing 필요 (Phase 1 한계, Phase 2 에서는 vLLM scheduler 가 해결) |
+| **Verifier 추상화** (`BaseVerifier`) | HF → vLLM 교체가 서버 코드 변경 0줄. 같은 `verify()` 시그니처 | 배치/KV 최적화를 backend-specific 경로로 빼야 해 backend 간 동작 차이 존재 |
 | Proposer 추상화 | N-gram/Suffix/EAGLE 런타임 교체 | 공통 인터페이스에 맞추느라 각 기법의 고유 최적화 포기 |
+| CLI 1급 등록 | `distspec-server`/`distspec-client` 대칭, `pip install -e .` 후 어디서나 | entry point 갱신은 재설치 필요 (editable 이라 실제로는 거의 무해) |
 
 ---
 
