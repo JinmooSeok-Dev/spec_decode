@@ -64,6 +64,7 @@ Documentation = "https://github.com/JinmooSeok-Dev/spec_decode/tree/main/docs"
 
 [project.scripts]
 distspec-server = "distspec.server.target_server:main"
+distspec-client = "distspec.client.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

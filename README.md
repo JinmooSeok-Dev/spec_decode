@@ -95,13 +95,14 @@ distspec-server --backend vllm \
 # tuning knobs, troubleshooting), see docs/VLLM_BACKEND.md.
 
 # Terminal 2 — client (same either way):
-python examples/remote_generate.py --prompt "Hello, world." --server localhost:8000
+distspec-client --prompt "Hello, world." --server localhost:8000
 ```
 
-The module form also works:
+Both are regular Python entry points, so the module form works too:
 
 ```bash
 python -m distspec.server.target_server --backend vllm --model gpt2
+python -m distspec.client.cli --prompt "Hello" --server 127.0.0.1:8000
 ```
 
 ### Run the test suite
