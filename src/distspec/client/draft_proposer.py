@@ -498,7 +498,7 @@ class EagleDraftProposer(BaseDraftProposer):
                 hidden state into the draft model's final-position input
                 embedding on the first forward. This is a **toy** approximation
                 of EAGLE (the real method requires retraining a draft head);
-                see ``docs/05-DRAFT_METHODS.md § 4.2``. Silently falls back
+                see ``docs/DRAFT_METHODS.md § 4.2``. Silently falls back
                 to the id-only path on hidden/embed dimension mismatch.
         """
         super().__init__(num_speculative_tokens)

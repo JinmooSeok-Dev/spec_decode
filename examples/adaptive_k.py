@@ -3,7 +3,7 @@
 
 Feeds synthetic ``(rtt, num_draft, num_accepted)`` observations into
 :class:`AdaptiveSpeculationController` and prints the chosen K. Demonstrates
-monotonicity described in ``docs/07-ADAPTIVE_CONTROL.md``.
+monotonicity described in ``docs/ADAPTIVE_CONTROL.md``.
 
 Run::
 

@@ -9,14 +9,14 @@ serving. The draft proposer runs on the client; the target model verifies
 draft tokens on the server. Communication is over ZMQ with a msgpack-based
 protocol, and the system is designed to keep output distribution identical
 to the target model (Rejection Sampling is lossless — see
-[docs/06-VERIFICATION.md](./docs/06-VERIFICATION.md)).
+[docs/VERIFICATION.md](./docs/VERIFICATION.md)).
 
 ## Why distspec?
 
 Naive remote inference pays **one network round-trip per generated token**.
 With RTT = 50 ms and 256 output tokens, that is 12.8 s of pure network
 overhead. Speculative Decoding amortizes this by confirming several tokens
-per round-trip. See [docs/01-PROBLEM.md](./docs/01-PROBLEM.md) for the
+per round-trip. See [docs/PROBLEM.md](./docs/PROBLEM.md) for the
 quantitative motivation.
 
 ## Status
@@ -25,7 +25,7 @@ quantitative motivation.
   flow, proposers (N-gram / Suffix / EAGLE-lite), Rejection Sampling,
   Adaptive K, and Fault-Tolerant FSM are implemented.
 - **Phase 2 (planned):** Replace the HF-based `HfVerifier` with a vLLM
-  `LLMEngine` backend (see [docs/09-ROADMAP.md](./docs/09-ROADMAP.md)).
+  `LLMEngine` backend (see [docs/ROADMAP.md](./docs/ROADMAP.md)).
   The client, protocol, and serving loop stay the same.
 
 ## Quick Start
@@ -92,21 +92,21 @@ distspec-server --model meta-llama/Llama-3.2-3B-Instruct
 └───────────────────────────────┘              └──────────────────────┘
 ```
 
-Component details: [docs/04-DESIGN.md](./docs/04-DESIGN.md).
+Component details: [docs/DESIGN.md](./docs/DESIGN.md).
 
 ## Documentation
 
 Read top-down — each document links to the next.
 
-1. [01-PROBLEM](./docs/01-PROBLEM.md) — why distributed SD, quantitatively.
-2. [02-SCENARIOS](./docs/02-SCENARIOS.md) — edge / shared / unstable-network.
-3. [03-ALGORITHMS](./docs/03-ALGORITHMS.md) — variants compared; client-server chosen.
-4. [04-DESIGN](./docs/04-DESIGN.md) — components, protocol, ZMQ topology.
-5. [05-DRAFT_METHODS](./docs/05-DRAFT_METHODS.md) — N-gram / Suffix / EAGLE.
-6. [06-VERIFICATION](./docs/06-VERIFICATION.md) — Rejection Sampling + confidence.
-7. [07-ADAPTIVE_CONTROL](./docs/07-ADAPTIVE_CONTROL.md) — adaptive K and the FSM.
-8. [08-EVALUATION](./docs/08-EVALUATION.md) — accuracy + performance tests.
-9. [09-ROADMAP](./docs/09-ROADMAP.md) — Phase 1 close-out and Phase 2 plan.
+1. [PROBLEM](./docs/PROBLEM.md) — why distributed SD, quantitatively.
+2. [SCENARIOS](./docs/SCENARIOS.md) — edge / shared / unstable-network.
+3. [ALGORITHMS](./docs/ALGORITHMS.md) — variants compared; client-server chosen.
+4. [DESIGN](./docs/DESIGN.md) — components, protocol, ZMQ topology.
+5. [DRAFT_METHODS](./docs/DRAFT_METHODS.md) — N-gram / Suffix / EAGLE.
+6. [VERIFICATION](./docs/VERIFICATION.md) — Rejection Sampling + confidence.
+7. [ADAPTIVE_CONTROL](./docs/ADAPTIVE_CONTROL.md) — adaptive K and the FSM.
+8. [EVALUATION](./docs/EVALUATION.md) — accuracy + performance tests.
+9. [ROADMAP](./docs/ROADMAP.md) — Phase 1 close-out and Phase 2 plan.
 
 ## Layout
 
@@ -135,7 +135,7 @@ python benchmarks/bench_sampling.py --json   # torch-optional; skips if absent
 ```
 
 A regression floor is enforced on `bench_ngram.py` (see `--regression-floor`).
-See [docs/08-EVALUATION.md](./docs/08-EVALUATION.md) for the planned full
+See [docs/EVALUATION.md](./docs/EVALUATION.md) for the planned full
 end-to-end measurement matrix.
 
 ## Contributing
@@ -152,5 +152,5 @@ Apache 2.0. See [LICENSE](./LICENSE).
 
 The architecture borrows from vLLM's speculative decoding implementation
 (the `NgramProposer` / `EagleProposer` / `RejectionSampler` patterns). See
-[docs/03-ALGORITHMS.md § References](./docs/03-ALGORITHMS.md#5-references)
+[docs/ALGORITHMS.md § References](./docs/ALGORITHMS.md#references)
 for the full bibliography.

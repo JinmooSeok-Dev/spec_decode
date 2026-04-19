@@ -1,10 +1,10 @@
-# 05. Draft Methods — N-gram, Suffix, EAGLE
+# Draft Methods — N-gram, Suffix, EAGLE
 
-[04-DESIGN](./04-DESIGN.md) 의 `DraftProposer` 추상화를 구현하는 세 가지 전략을 정리한다. 세 방식은 **"모델 필요성 ↔ 수락률"** 의 트레이드오프 축에 놓여 있고, 런타임에 교체 가능하다.
+[DESIGN](./DESIGN.md) 의 `DraftProposer` 추상화를 구현하는 세 가지 전략을 정리한다. 세 방식은 **"모델 필요성 ↔ 수락률"** 의 트레이드오프 축에 놓여 있고, 런타임에 교체 가능하다.
 
 ---
 
-## 1. 공통 인터페이스
+## 공통 인터페이스
 
 ```python
 class BaseDraftProposer(ABC):
@@ -23,15 +23,15 @@ class BaseDraftProposer(ABC):
 - `draft_tokens: list[int]`
 - `draft_probs: Optional[Tensor]` — EAGLE 은 분포, N-gram/Suffix 는 `None` (서버에서 uniform 가정)
 - `hidden_states: Optional[Tensor]` — EAGLE 이 다음 propose 에 사용
-- `confidence_scores: Optional[list[float]]` — [06-VERIFICATION](./06-VERIFICATION.md) 의 BiLD/SVIP 최적화에 사용
+- `confidence_scores: Optional[list[float]]` — [VERIFICATION](./VERIFICATION.md) 의 BiLD/SVIP 최적화에 사용
 
 ---
 
-## 2. N-gram Draft Proposer
+## N-gram Draft Proposer
 
 **아이디어**: context 의 마지막 $n$ 개 토큰을 패턴으로 삼아, **같은 context 의 과거 구간**에서 동일 패턴이 나타난 위치를 찾고 그 직후 토큰들을 draft 로 제안.
 
-### 2.1 알고리즘
+### 알고리즘
 
 ```
 for match_len in [ngram_window, ngram_window-1, ..., min_match_length]:
@@ -45,27 +45,27 @@ for match_len in [ngram_window, ngram_window-1, ..., min_match_length]:
 - Numba 가용 시 `_kmp_search_numba` 로 JIT 가속 (큰 context 에서 O(n) 보장).
 - **무상태**. 매 호출마다 context 내부만 본다.
 
-### 2.2 언제 효과적인가
+### 언제 효과적인가
 
 - 반복 구조가 있는 텍스트 (코드, JSON, 표, 로그, 채팅에서 이전 답변 인용 등).
 - 토큰 단위 수락률이 매우 높을 수 있음 (α > 0.9 관측되기도 함 — vLLM ngram proposer 벤치).
 
-### 2.3 언제 부적절한가
+### 언제 부적절한가
 
 - 자유 텍스트 생성 (소설, 장문 추론) 에서 α 가 급락.
 - 프롬프트가 매우 짧으면(< `min_match_length`) 아예 작동 안 함.
 
-### 2.4 구현 레퍼런스
+### 구현 레퍼런스
 
 `prototype/client/draft_proposer.py:85-275`
 
 ---
 
-## 3. Suffix Decoding Proposer
+## Suffix Decoding Proposer
 
 **아이디어**: N-gram 과 유사하지만, **이전 요청들의 패턴까지 suffix tree 에 축적** 하여 활용. 현재 context 에 없는 패턴도 과거 대화에서 배운 것이라면 제안 가능.
 
-### 3.1 알고리즘
+### 알고리즘
 
 ```
 _tree: dict[suffix_tuple, dict[next_token, count]]
@@ -85,7 +85,7 @@ update_tree(generated_sequence)  # 모든 suffix 길이로 count 갱신
 - `min_token_prob` 이하의 저확률 후보는 제외.
 - `max_tree_size` 로 메모리 상한.
 
-### 3.2 N-gram 과의 차이
+### N-gram 과의 차이
 
 | 속성 | N-gram | Suffix |
 |---|---|---|
@@ -94,17 +94,17 @@ update_tree(generated_sequence)  # 모든 suffix 길이로 count 갱신
 | confidence 근거 | 매칭 길이 | 빈도 기반 확률 |
 | 부적절한 상황 | 자유 텍스트 | 도메인이 급변하는 환경 (학습된 패턴이 오히려 방해) |
 
-### 3.3 구현 레퍼런스
+### 구현 레퍼런스
 
 `prototype/client/draft_proposer.py:282-452`
 
 ---
 
-## 4. EAGLE Draft Proposer
+## EAGLE Draft Proposer
 
 **아이디어**: target 모델의 **hidden state 정보를 draft 에 전달**하여 draft 품질을 높이는 기법 ([Li et al., 2024](https://arxiv.org/abs/2401.15077)). 작은 draft 모델 (예: 1B) 을 `autoregressive` 하게 돌리되, target 의 최근 hidden state 를 입력으로 함께 넣어 그 분포를 더 잘 흉내내도록 한다.
 
-### 4.1 알고리즘 (본 프로토타입의 경량 버전)
+### 알고리즘 (본 프로토타입의 경량 버전)
 
 ```python
 for step in range(K):
@@ -123,7 +123,7 @@ return DraftOutput(draft_tokens, draft_probs=stack(draft_probs),
                    hidden_states=last_layer_hidden)
 ```
 
-### 4.2 논문 EAGLE 과의 차이
+### 논문 EAGLE 과의 차이
 
 | 항목 | 논문 EAGLE | 본 프로토타입 |
 |---|---|---|
@@ -134,13 +134,13 @@ return DraftOutput(draft_tokens, draft_probs=stack(draft_probs),
 
 즉 **본 구현은 "EAGLE 스타일 구조 + 기성 draft 모델" 의 경량 버전**이다. 진짜 논문 EAGLE 재현에는 draft head 재학습이 필요하므로 Phase 1 범위 밖이다.
 
-### 4.3 구현 레퍼런스
+### 구현 레퍼런스
 
 `prototype/client/draft_proposer.py:459-673`
 
 ---
 
-## 5. 선택 가이드
+## 선택 가이드
 
 | 환경 | 권장 |
 |---|---|
@@ -153,9 +153,9 @@ return DraftOutput(draft_tokens, draft_probs=stack(draft_probs),
 
 ---
 
-## 6. Confidence 통합
+## Confidence 통합
 
-세 proposer 모두 `DraftOutput.confidence_scores` 를 선택적으로 채울 수 있다. 이 점수는 [06-VERIFICATION § 4. Confidence 기반 최적화](./06-VERIFICATION.md#4-confidence-기반-최적화) 에서 Token-level skip / Query-level routing / Adaptive window 에 사용된다.
+세 proposer 모두 `DraftOutput.confidence_scores` 를 선택적으로 채울 수 있다. 이 점수는 [06-VERIFICATION §. Confidence 기반 최적화](./VERIFICATION.md#confidence-기반-최적화) 에서 Token-level skip / Query-level routing / Adaptive window 에 사용된다.
 
 - **N-gram**: 매칭 길이 기반 (`base_conf * 0.95^i`)
 - **Suffix**: 빈도 기반 (`count / total`)
@@ -163,7 +163,7 @@ return DraftOutput(draft_tokens, draft_probs=stack(draft_probs),
 
 ---
 
-## 7. References
+## References
 
 - Li, Y., et al. (2024). *EAGLE: Speculative Sampling Requires Rethinking Feature Uncertainty.* [[arXiv:2401.15077]](https://arxiv.org/abs/2401.15077)
 - Cai, T., et al. (2024). *Medusa: Simple LLM Inference Acceleration Framework.* [[arXiv:2401.10774]](https://arxiv.org/abs/2401.10774) (참고: 본 프로토타입 미구현)
@@ -172,4 +172,4 @@ return DraftOutput(draft_tokens, draft_probs=stack(draft_probs),
 
 ---
 
-**다음 섹션**: 이렇게 생성된 draft 가 target 에서 어떻게 검증되는지 → [06-VERIFICATION](./06-VERIFICATION.md)
+**다음 섹션**: 이렇게 생성된 draft 가 target 에서 어떻게 검증되는지 → [VERIFICATION](./VERIFICATION.md)

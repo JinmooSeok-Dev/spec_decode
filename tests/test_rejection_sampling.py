@@ -2,7 +2,7 @@
 """Statistical tests for :class:`RejectionSampler`.
 
 Empirically verifies the distribution-preserving property proved in
-``docs/06-VERIFICATION.md § 3.1``: the aggregate distribution of
+``docs/VERIFICATION.md § 3.1``: the aggregate distribution of
 (accepted ∪ recovered) tokens must equal the target distribution ``p``.
 
 Runs on CPU, requires torch + scipy.

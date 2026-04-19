@@ -1,6 +1,6 @@
-# 02. User Scenarios — 어떤 환경에서 쓰는가
+# User Scenarios — 어떤 환경에서 쓰는가
 
-[01-PROBLEM](./01-PROBLEM.md) 에서 정의한 문제(RTT 누적 + 원격 target 의존 + 장애 가능성)가 실제로 발생하는 세 가지 대표 시나리오를 정리한다. 이 세 시나리오가 [04-DESIGN](./04-DESIGN.md) 의 모든 설계 결정(ZMQ DEALER/ROUTER, Adaptive K, Fault-Tolerant FSM)의 출발점이 된다.
+[PROBLEM](./PROBLEM.md) 에서 정의한 문제(RTT 누적 + 원격 target 의존 + 장애 가능성)가 실제로 발생하는 세 가지 대표 시나리오를 정리한다. 이 세 시나리오가 [DESIGN](./DESIGN.md) 의 모든 설계 결정(ZMQ DEALER/ROUTER, Adaptive K, Fault-Tolerant FSM)의 출발점이 된다.
 
 ---
 
@@ -21,9 +21,9 @@
 
 **비기능 요구**
 - **P99 첫 토큰 latency < 500ms** (RTT 100ms 환경). 이는 SD 한 스텝에 draft 생성(~50ms) + 왕복(100ms) + verify(~50ms) + 버퍼 여유를 포함한 값.
-- **RTT 상각 효과**: 동일 조건에서 naive 대비 **3× 이상** end-to-end throughput 향상 (α=0.7, K=5 기준, [01-PROBLEM](./01-PROBLEM.md) § 정량적 Impact 참조).
+- **RTT 상각 효과**: 동일 조건에서 naive 대비 **3× 이상** end-to-end throughput 향상 (α=0.7, K=5 기준, [PROBLEM](./PROBLEM.md) § 정량적 Impact 참조).
 
-→ 이 요구를 만족시키기 위해 [07-ADAPTIVE_CONTROL](./07-ADAPTIVE_CONTROL.md) 의 Adaptive K 가 필요하다.
+→ 이 요구를 만족시키기 위해 [ADAPTIVE_CONTROL](./ADAPTIVE_CONTROL.md) 의 Adaptive K 가 필요하다.
 
 ---
 
@@ -46,7 +46,7 @@
 - **동시 100 요청에서 target GPU 활용률 > 80%**. 단일 요청 처리 중에도 다른 요청이 큐잉되어 GPU idle time 을 최소화해야 한다.
 - **Verify batch 처리**: 여러 클라이언트의 draft 검증을 한 번의 target forward 로 묶어 throughput 을 확보 (Phase 1 에서는 `BatchVerifier` 로 준비, 실제 batched forward 는 Phase B 에서 완성).
 
-→ 이 요구를 만족시키기 위해 [04-DESIGN](./04-DESIGN.md) 의 ZMQ ROUTER 패턴과 `RequestState` 관리가 필요하다.
+→ 이 요구를 만족시키기 위해 [DESIGN](./DESIGN.md) 의 ZMQ ROUTER 패턴과 `RequestState` 관리가 필요하다.
 
 ---
 
@@ -69,7 +69,7 @@
 - **3회 연속 타임아웃 내 fallback 전환** (사용자 대기 시간 한계).
 - **복구 탐지는 30초 주기**로 충분 (서버 장애는 보통 수 분 단위).
 
-→ 이 요구를 만족시키기 위해 [07-ADAPTIVE_CONTROL](./07-ADAPTIVE_CONTROL.md) 의 3-state FSM(SPECULATIVE / DEGRADED / FALLBACK) 이 필요하다.
+→ 이 요구를 만족시키기 위해 [ADAPTIVE_CONTROL](./ADAPTIVE_CONTROL.md) 의 3-state FSM(SPECULATIVE / DEGRADED / FALLBACK) 이 필요하다.
 
 ---
 
@@ -77,10 +77,10 @@
 
 | 시나리오 | 핵심 요구사항 | 해결 메커니즘 | 관련 문서 |
 |---|---|---|---|
-| 1. 엣지-클라우드 | 분포 보존 + RTT 상각 | Rejection Sampling + Adaptive K | [06-VERIFICATION](./06-VERIFICATION.md), [07](./07-ADAPTIVE_CONTROL.md) |
-| 2. 다중 클라이언트 | 요청 격리 + 서버 상태 누적 | ROUTER identity + `RequestState` | [04-DESIGN](./04-DESIGN.md) |
-| 3. 네트워크 불안정 | 장애 내성 + 자동 복구 | 3-state FSM + HealthCheck | [07-ADAPTIVE_CONTROL](./07-ADAPTIVE_CONTROL.md) |
+| 1. 엣지-클라우드 | 분포 보존 + RTT 상각 | Rejection Sampling + Adaptive K | [VERIFICATION](./VERIFICATION.md), [07](./ADAPTIVE_CONTROL.md) |
+| 2. 다중 클라이언트 | 요청 격리 + 서버 상태 누적 | ROUTER identity + `RequestState` | [DESIGN](./DESIGN.md) |
+| 3. 네트워크 불안정 | 장애 내성 + 자동 복구 | 3-state FSM + HealthCheck | [ADAPTIVE_CONTROL](./ADAPTIVE_CONTROL.md) |
 
 ---
 
-**다음 섹션**: 이 시나리오들을 풀기 위해 어떤 SD 알고리즘과 분산 아키텍처를 선택해야 하는지 비교한다 → [03-ALGORITHMS](./03-ALGORITHMS.md)
+**다음 섹션**: 이 시나리오들을 풀기 위해 어떤 SD 알고리즘과 분산 아키텍처를 선택해야 하는지 비교한다 → [ALGORITHMS](./ALGORITHMS.md)

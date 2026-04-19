@@ -25,7 +25,7 @@ Scope
 -----
 * **Greedy only** in this version. ``sampling_params.temperature > 0`` raises
   :class:`NotImplementedError` — random-mode rejection sampling against vLLM
-  distributions is tracked as Phase 2 S2 in ``docs/09-ROADMAP.md``.
+  distributions is tracked as Phase 2 S2 in ``docs/ROADMAP.md``.
 * Batched verify is delegated to vLLM's scheduler: we hand it a list of
   prompts in one :meth:`vllm.LLM.generate` call.
 """
@@ -116,7 +116,7 @@ class VllmVerifier(BaseVerifier):
                 raise NotImplementedError(
                     "VllmVerifier currently supports greedy (temperature=0) only. "
                     "Random-mode rejection sampling is tracked as Phase 2 S2 — "
-                    "see docs/09-ROADMAP.md."
+                    "see docs/ROADMAP.md."
                 )
 
         from vllm import SamplingParams as VllmSP

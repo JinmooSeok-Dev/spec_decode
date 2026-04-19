@@ -3,7 +3,7 @@
 
 Measures tokens/sec, TTFT and acceptance rate for a real model pair. Excluded
 from CI; intended for manual performance tracking. See
-``docs/08-EVALUATION.md`` for the planned measurement matrix.
+``docs/EVALUATION.md`` for the planned measurement matrix.
 
 Not yet implemented — the Phase B smoke tests must land first to ensure the
 client-server loop runs on real models.
@@ -17,7 +17,7 @@ import sys
 def main() -> int:
     print(
         "bench_e2e: not yet implemented — pending Phase B smoke tests.\n"
-        "See docs/08-EVALUATION.md § 4 for the planned design.",
+        "See docs/EVALUATION.md § 4 for the planned design.",
         file=sys.stderr,
     )
     return 77  # conventional "skip" exit code

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Fault-tolerant client with a three-state availability FSM.
 
-See ``docs/07-ADAPTIVE_CONTROL.md`` for the state transitions. Falls back to
+See ``docs/ADAPTIVE_CONTROL.md`` for the state transitions. Falls back to
 local draft-only generation when the target server is unreachable.
 """
 

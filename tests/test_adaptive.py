@@ -5,7 +5,7 @@ Verifies monotonicity of the chosen K* with respect to:
   * the observed acceptance rate α (higher → larger K), and
   * the observed RTT (larger → larger K).
 
-These are the invariants documented in ``docs/07-ADAPTIVE_CONTROL.md § 1.4``.
+These are the invariants documented in ``docs/ADAPTIVE_CONTROL.md § 1.4``.
 """
 
 from __future__ import annotations
