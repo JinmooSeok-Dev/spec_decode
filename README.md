@@ -95,7 +95,7 @@ distspec-server --backend vllm \
 # tuning knobs, troubleshooting), see docs/VLLM_BACKEND.md.
 
 # Terminal 2 — client (same either way):
-python examples/client_server.py --prompt "Hello, world." --server localhost:8000
+python examples/remote_generate.py --prompt "Hello, world." --server localhost:8000
 ```
 
 The module form also works:

@@ -1,15 +1,20 @@
 # SPDX-License-Identifier: Apache-2.0
-"""End-to-end client/server demo.
+"""Generate text against a remote target server over ZMQ.
 
-Requires a running target server::
+A streaming client demo: start a ``distspec-server`` in another terminal
+(HuggingFace or vLLM backend) and this script connects to it, sends draft
+tokens produced by the local N-gram proposer, and prints the accepted
+tokens as they come back.
 
-    python -m distspec.server.target_server \\
-        --model meta-llama/Llama-3.2-3B-Instruct \\
-        --listen-address 0.0.0.0:8000
+Example ::
 
-Then run this script::
+    # Terminal 1 — target server
+    distspec-server --backend hf   --model meta-llama/Llama-3.2-3B-Instruct
+    #   or
+    distspec-server --backend vllm --model gpt2 --max-model-len 1024
 
-    PYTHONPATH=src python examples/client_server.py --prompt "Hello, world."
+    # Terminal 2 — this client
+    python examples/remote_generate.py --prompt "Hello, world."
 """
 
 from __future__ import annotations

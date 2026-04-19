@@ -128,7 +128,7 @@ distspec-server \
 
 ```bash
 # Terminal 2 — client
-python examples/client_server.py \
+python examples/remote_generate.py \
     --prompt "The quick brown fox jumps" \
     --server 127.0.0.1:8000 \
     --max-tokens 20
