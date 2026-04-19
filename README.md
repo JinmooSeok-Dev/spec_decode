@@ -91,6 +91,9 @@ distspec-server --backend vllm \
     --model meta-llama/Llama-3.2-3B-Instruct \
     --listen-address 0.0.0.0:8000
 
+# For the full vLLM-backend walkthrough (GPU selection, one-shot script,
+# tuning knobs, troubleshooting), see docs/VLLM_BACKEND.md.
+
 # Terminal 2 — client (same either way):
 python examples/client_server.py --prompt "Hello, world." --server localhost:8000
 ```
@@ -143,6 +146,11 @@ Read top-down — each document links to the next.
 7. [ADAPTIVE_CONTROL](./docs/ADAPTIVE_CONTROL.md) — adaptive K and the FSM.
 8. [EVALUATION](./docs/EVALUATION.md) — accuracy + performance tests.
 9. [ROADMAP](./docs/ROADMAP.md) — Phase 1 close-out and Phase 2 plan.
+
+How-to:
+- [VLLM_BACKEND](./docs/VLLM_BACKEND.md) — install, select a GPU, run a
+  one-shot script or a server/client session against the vLLM verifier,
+  tuning knobs, and a troubleshooting table.
 
 ## Layout
 
