@@ -147,7 +147,9 @@ class ServerConfig:
 
     # GPU 설정
     gpu_memory_utilization: float = 0.9
-    max_model_len: int = 4096
+    # ``None`` lets the backend pick the model's native ``max_position_embeddings``.
+    # Set explicitly to cap sequence length or to override what the model exposes.
+    max_model_len: int | None = None
 
     # Worker 설정
     num_workers: int = 1

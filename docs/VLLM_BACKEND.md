@@ -160,7 +160,7 @@ of the default CI job.
 | `--backend vllm` | `hf` | Must be set to select the vLLM verifier. |
 | `--tensor-parallel-size N` | `1` | Shard the target across N GPUs. Requires N compatible cards and matching `CUDA_VISIBLE_DEVICES`. |
 | `--gpu-memory-utilization X` | `0.9` | Raise to give vLLM more KV cache headroom; lower if other processes share the GPU. |
-| `max_model_len` (in code) | inferred | Cap the maximum sequence length to reduce KV cache size. |
+| `--max-model-len N` / `max_model_len` | `None` (use model's own) | Cap the maximum sequence length. Leave unset to inherit the model's `max_position_embeddings`. |
 | `enforce_eager=True` | `False` | Skip CUDA-graph build at startup — useful for short runs and development. |
 | `dtype="float16"` / `"bfloat16"` | `"auto"` | Force a dtype if `auto` picks something your GPU doesn't support well. |
 
@@ -184,6 +184,7 @@ of the default CI job.
 | `ModuleNotFoundError: vllm` | Active venv doesn't have vLLM | `pip install -e ".[vllm]"` or activate a venv that already has it. |
 | `RuntimeError: VllmVerifier requires the 'vllm' package` | Same as above — raised when you try to instantiate the verifier | Install vLLM. |
 | `NotImplementedError: greedy (temperature=0) only` | Client sent `temperature > 0` | Use `SamplingParams(temperature=0.0)` for now (Phase 2 S1). |
+| `ValidationError: max_model_len ... is greater than the derived max_model_len` | Explicit `--max-model-len` (or `ServerConfig.max_model_len`) exceeds the target model's `max_position_embeddings` | Either drop the flag (default is `None`, letting vLLM pick the model's native limit), or pass a value ≤ the model's own. gpt2-family models cap at 1024, OPT-125M at 2048, most modern Llama-family models ≥ 4096. |
 | Client hangs waiting for a reply | Draft message shape mismatch or server stalled | Check the server log; the DEALER ↔ ROUTER protocol uses `send_multipart([b"", payload])` on both sides. |
 
 ## 7. Where to look next

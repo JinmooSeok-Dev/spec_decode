@@ -443,7 +443,16 @@ def main():
         "--backend",
         choices=["hf", "vllm"],
         default="hf",
-        help="Verifier backend (Phase 1: hf, Phase 2: vllm — not yet implemented)",
+        help="Verifier backend (Phase 1: hf, Phase 2: vllm)",
+    )
+    parser.add_argument(
+        "--max-model-len",
+        type=int,
+        default=None,
+        help=(
+            "Maximum sequence length. When omitted, the backend uses the model's "
+            "native max_position_embeddings."
+        ),
     )
 
     args = parser.parse_args()
@@ -458,6 +467,7 @@ def main():
         tensor_parallel_size=args.tensor_parallel_size,
         gpu_memory_utilization=args.gpu_memory_utilization,
         backend=args.backend,
+        max_model_len=args.max_model_len,
     ))
 
 
