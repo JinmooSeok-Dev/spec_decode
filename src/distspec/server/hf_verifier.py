@@ -352,10 +352,12 @@ class HfVerifier(BaseVerifier):
         Returns:
             VerifyOutput: 검증 결과
         """
-        if not draft_tokens:
+        # Even with no draft tokens we still want to produce a bonus (the plain
+        # autoregressive next token). Only bail out when there is also no
+        # context to forward through the model.
+        if not draft_tokens and not context_tokens:
             return VerifyOutput()
 
-        # 입력 준비: context + draft
         all_tokens = context_tokens + draft_tokens
         input_ids = torch.tensor([all_tokens], device=self.device)
 

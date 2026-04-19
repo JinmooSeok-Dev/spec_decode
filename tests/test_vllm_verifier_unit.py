@@ -164,3 +164,24 @@ def test_verify_batch_rejects_non_greedy():
 def test_verify_batch_empty_returns_empty():
     v = _make_verifier()
     assert v.verify_batch([]) == []
+
+
+def test_verify_one_handles_empty_draft():
+    """Empty draft (N-gram on a non-repeating prompt) → bonus from generated."""
+    v = _make_verifier()
+    # prompt_logprobs has an entry per prompt position; with no drafts we only
+    # need those covering the context (so len == len(context)).
+    prompt_logprobs = _make_prompt_logprobs([None, 99, 88])  # ctx_len=3
+    out = _FakeOut(prompt_logprobs=prompt_logprobs, generated_token=444)
+
+    req = BatchRequest(
+        client_id="c",
+        request_id="r",
+        draft_tokens=[],  # <-- empty
+        draft_probs=None,
+        context_tokens=[1, 2, 3],
+        sampling_params=SamplingParams(temperature=0.0),
+    )
+    result = v._verify_one(req, out)
+    assert result.accepted_tokens == []
+    assert result.bonus_token == 444

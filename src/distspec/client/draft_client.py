@@ -319,9 +319,10 @@ class DraftClient:
                 sampling_params=sampling_params,
             )
 
-            if not draft_output.draft_tokens:
-                # Draft 실패 시 종료
-                break
+            # Empty draft (e.g. N-gram on a prompt with no repeating pattern)
+            # is fine — the server will still produce one bonus token, which is
+            # what you'd get from plain autoregressive decoding. Without this
+            # path the loop would stall forever on non-repeating prompts.
 
             # 3. Server에 검증 요청
             request = DraftRequest(
