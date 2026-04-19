@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: Apache-2.0
+# Core runtime dependencies. Install via:
+#   pip install -r requirements.txt
+#
+# For the HuggingFace backend (HfVerifier) you additionally need:
+#   pip install -e ".[torch]"
+# For development tooling and tests:
+#   pip install -e ".[dev]"
+# The full dependency set is declared in pyproject.toml.
+
+pyzmq>=25
+msgspec>=0.18
+numpy>=1.24

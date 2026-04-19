@@ -1,0 +1,42 @@
+# Personal learning notes (kept locally, not published)
+study/
+
+# Claude-related local configuration — never commit
+CLAUDE.md
+.claude/
+.claude-*/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtualenvs
+.venv/
+.venv-*/
+venv/
+env/
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# HuggingFace / model caches placed locally
+.cache/
+*.safetensors
+*.bin
+*.pt
+
+# Logs / local runs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp

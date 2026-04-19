@@ -1,0 +1,76 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-smoke:
+    name: lint + imports + examples
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package + dev extras
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Ruff
+        run: ruff check src examples benchmarks tests
+
+      - name: Import sanity
+        run: |
+          python -c "import distspec; print(distspec.__version__)"
+          python -c "from distspec.client import NgramDraftProposer, SuffixDraftProposer"
+          python -c "from distspec.server import BaseVerifier, HfVerifier, TargetServer"
+          python -c "from distspec.common import MsgpackEncoder, MsgpackDecoder"
+
+      - name: Run CPU-only examples
+        run: |
+          python examples/offline_ngram.py
+          python examples/adaptive_k.py
+          python examples/protocol_roundtrip.py
+
+      - name: Pytest (skip slow/gpu)
+        run: pytest tests/ -v -m "not slow and not gpu"
+
+  benchmarks:
+    name: CPU benchmarks (CI-safe)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: bench_ngram
+        env:
+          PYTHONPATH: benchmarks
+        run: python benchmarks/bench_ngram.py --json
+
+      - name: bench_protocol
+        env:
+          PYTHONPATH: benchmarks
+        run: python benchmarks/bench_protocol.py --json
+
+      - name: bench_sampling (torch optional, may skip)
+        env:
+          PYTHONPATH: benchmarks
+        run: python benchmarks/bench_sampling.py --json

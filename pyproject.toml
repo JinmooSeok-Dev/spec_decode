@@ -1,0 +1,123 @@
+# SPDX-License-Identifier: Apache-2.0
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "distspec"
+version = "0.1.0.dev0"
+description = "Distributed Speculative Decoding — client-server reference implementation"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+authors = [
+    { name = "distspec contributors" },
+]
+keywords = ["llm", "speculative-decoding", "inference", "distributed"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# Core dependencies: transport + serialization only. Torch/transformers/vLLM
+# are optional (see [project.optional-dependencies]).
+dependencies = [
+    "pyzmq>=25",
+    "msgspec>=0.18",
+    "numpy>=1.24",
+]
+
+[project.optional-dependencies]
+# HuggingFace backend (Phase 1). Required to run the HfVerifier.
+torch = [
+    "torch>=2.1",
+    "transformers>=4.40",
+]
+# vLLM backend (Phase 2 — stub). Install once the integration lands.
+vllm = [
+    "vllm>=0.7",
+]
+# N-gram JIT acceleration.
+jit = [
+    "numba>=0.59",
+]
+# Development / testing / linting.
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "scipy>=1.11",  # χ² test in tests/test_rejection_sampling.py
+]
+
+[project.urls]
+Homepage = "https://github.com/JinmooSeok-Dev/spec_decode"
+Documentation = "https://github.com/JinmooSeok-Dev/spec_decode/tree/main/docs"
+
+[project.scripts]
+distspec-server = "distspec.server.target_server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["distspec*"]
+
+# --- Ruff -------------------------------------------------------------------
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+src = ["src", "examples", "benchmarks"]
+
+[tool.ruff.lint]
+# Subset of vLLM's ruleset. Keep it small while the project is pre-alpha.
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort
+    "W",   # pycodestyle warnings
+    "UP",  # pyupgrade
+    "B",   # bugbear
+]
+ignore = [
+    "E501",  # line-length managed by formatter
+    "B008",  # default-arg dataclasses intentionally use field()
+    "B007",  # unused loop vars are occasionally intentional for readability
+    "F841",  # unused locals surface during benchmarking / timing scaffolding
+]
+
+[tool.ruff.lint.per-file-ignores]
+"examples/*" = ["T20"]       # allow print() in demos
+"benchmarks/*" = ["T20"]
+"tests/*" = ["B017", "B905"]  # allow zip() without strict= in tests
+
+[tool.ruff.lint.isort]
+known-first-party = ["distspec"]
+
+# --- Pytest -----------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "slow: long-running tests (excluded from default CI)",
+    "gpu: tests requiring a CUDA GPU",
+    "integration: end-to-end tests that spin up real models",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+# --- Mypy -------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.10"
+strict_optional = true
+ignore_missing_imports = true
+disallow_untyped_defs = false
+warn_unused_ignores = true
