@@ -46,7 +46,7 @@ def test_greedy_all_correct_draft_accepts_all(verifier: VllmVerifier):
     # would want on its own.
     params = VllmSP(temperature=0.0, max_tokens=3, detokenize=False)
     out = verifier.llm.generate(
-        prompt_token_ids=[prompt_ids],
+        prompts=[prompt_ids],
         sampling_params=params,
         use_tqdm=False,
     )
@@ -99,7 +99,7 @@ def test_batched_verify_matches_sequential(verifier: VllmVerifier):
     # Build consistent drafts: target's own greedy produces K tokens.
     params = VllmSP(temperature=0.0, max_tokens=2, detokenize=False)
     gens = verifier.llm.generate(
-        prompt_token_ids=prompts,
+        prompts=prompts,
         sampling_params=params,
         use_tqdm=False,
     )

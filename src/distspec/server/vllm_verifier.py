@@ -137,8 +137,10 @@ class VllmVerifier(BaseVerifier):
             detokenize=False,
         )
 
+        # Newer vLLM (>= 0.9 / V1) removed the ``prompt_token_ids=`` keyword;
+        # token id lists are now accepted directly as ``prompts``.
         outputs = self.llm.generate(
-            prompt_token_ids=prompt_token_ids,
+            prompts=prompt_token_ids,
             sampling_params=vllm_params,
             use_tqdm=False,
         )

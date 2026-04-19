@@ -98,18 +98,21 @@ def main() -> int:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
 
-    asyncio.run(
-        run(
-            prompt=args.prompt,
-            server=args.server,
-            max_tokens=args.max_tokens,
-            temperature=args.temperature,
-            draft_method=args.draft_method,
-            num_speculative_tokens=args.num_speculative_tokens,
-            timeout=args.timeout,
-            tokenizer_name=args.tokenizer,
+    try:
+        asyncio.run(
+            run(
+                prompt=args.prompt,
+                server=args.server,
+                max_tokens=args.max_tokens,
+                temperature=args.temperature,
+                draft_method=args.draft_method,
+                num_speculative_tokens=args.num_speculative_tokens,
+                timeout=args.timeout,
+                tokenizer_name=args.tokenizer,
+            )
         )
-    )
+    except KeyboardInterrupt:
+        print()  # newline after partial output
     return 0
 
 

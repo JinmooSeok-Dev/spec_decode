@@ -89,7 +89,7 @@ print("prompt token ids:", prompt)
 # Take the target's own greedy continuation as the draft — every token
 # should be accepted.
 gen = v.llm.generate(
-    prompt_token_ids=[prompt],
+    prompts=[prompt],
     sampling_params=VllmSP(temperature=0, max_tokens=3, detokenize=False),
     use_tqdm=False,
 )

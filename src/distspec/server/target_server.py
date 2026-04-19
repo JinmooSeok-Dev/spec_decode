@@ -240,7 +240,7 @@ class TargetServer:
                         self.encoder.encode(response),
                     ])
 
-            except zmq.error.ContextTerminated:
+            except (zmq.error.ContextTerminated, asyncio.CancelledError):
                 break
             except Exception:
                 logger.exception("Error processing request")
@@ -263,16 +263,24 @@ class TargetServer:
         except Exception:
             pass
 
+        # Decode first. If decoding fails the payload is malformed — log and drop.
         try:
-            # DraftRequest 시도
             request = self.request_decoder.decode(data)
-            if isinstance(request, DraftRequest):
-                return await self._handle_draft_request(client_id, request)
         except Exception as e:
             logger.warning("Failed to decode message: %s", e)
             return None
 
-        return None
+        if not isinstance(request, DraftRequest):
+            return None
+
+        # Verify separately so that backend exceptions (model errors, vLLM API
+        # mismatches, etc.) are surfaced with a proper traceback rather than
+        # being mis-labelled as a decode failure.
+        try:
+            return await self._handle_draft_request(client_id, request)
+        except Exception:
+            logger.exception("Failed to verify draft request (client=%s)", client_id)
+            return None
 
     def _handle_health_check(self, check: HealthCheck) -> HealthResponse:
         """Health Check 처리"""
@@ -461,14 +469,17 @@ def main():
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
 
-    asyncio.run(run_server(
-        model=args.model,
-        listen_address=args.listen_address,
-        tensor_parallel_size=args.tensor_parallel_size,
-        gpu_memory_utilization=args.gpu_memory_utilization,
-        backend=args.backend,
-        max_model_len=args.max_model_len,
-    ))
+    try:
+        asyncio.run(run_server(
+            model=args.model,
+            listen_address=args.listen_address,
+            tensor_parallel_size=args.tensor_parallel_size,
+            gpu_memory_utilization=args.gpu_memory_utilization,
+            backend=args.backend,
+            max_model_len=args.max_model_len,
+        ))
+    except KeyboardInterrupt:
+        logger.info("Target server interrupted; shutting down.")
 
 
 if __name__ == "__main__":
