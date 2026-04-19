@@ -24,24 +24,40 @@ quantitative motivation.
 - **Phase 1 (current):** Pure PyTorch + HuggingFace reference. All message
   flow, proposers (N-gram / Suffix / EAGLE-lite), Rejection Sampling,
   Adaptive K, and Fault-Tolerant FSM are implemented.
-- **Phase 2 (planned):** Replace the HF-based `HfVerifier` with a vLLM
-  `LLMEngine` backend (see [docs/ROADMAP.md](./docs/ROADMAP.md)).
-  The client, protocol, and serving loop stay the same.
+- **Phase 2 (in progress):** `VllmVerifier` is implemented and wired up —
+  select it via `--backend vllm` or `ServerConfig.backend="vllm"`. Greedy
+  rejection works end-to-end; random-mode rejection sampling is tracked
+  in [docs/ROADMAP.md](./docs/ROADMAP.md). The client, protocol, and
+  serving loop are unchanged.
 
 ## Quick Start
 
 ### Install
 
+Create a virtual environment and install the package. Pick the extras you
+need — they are additive and can be combined (e.g. `".[torch,dev]"`).
+
 ```bash
-# Core dependencies only (offline examples + CPU benchmarks work):
+python -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+
+# Core only (offline examples + CPU benchmarks work, no model runtime):
 pip install -e .
 
-# HuggingFace backend (needed to run a real target server):
+# HuggingFace backend (Phase 1 reference — CPU or GPU):
 pip install -e ".[torch]"
 
-# Dev tooling (pytest, ruff, scipy for χ² tests):
+# vLLM backend (Phase 2 — requires a CUDA GPU):
+pip install -e ".[vllm]"
+
+# Development + test tooling (pytest, ruff, scipy for χ² tests):
 pip install -e ".[dev]"
 ```
+
+After installation, the module is importable as `distspec` and a
+`distspec-server` console script is available — no `PYTHONPATH=src`
+required.
 
 ### Run without a server (N-gram proposer only)
 
@@ -62,20 +78,40 @@ python examples/adaptive_k.py
 
 ### Run a real client/server session
 
+Two backends are available; pick one with `--backend`:
+
 ```bash
-# Terminal 1 — target server (GPU recommended):
-python -m distspec.server.target_server \
+# Terminal 1 — HuggingFace backend (Phase 1 reference):
+distspec-server --backend hf \
     --model meta-llama/Llama-3.2-3B-Instruct \
     --listen-address 0.0.0.0:8000
 
-# Terminal 2 — client:
+# Terminal 1 alternative — vLLM backend (Phase 2, requires GPU + [vllm] extra):
+distspec-server --backend vllm \
+    --model meta-llama/Llama-3.2-3B-Instruct \
+    --listen-address 0.0.0.0:8000
+
+# Terminal 2 — client (same either way):
 python examples/client_server.py --prompt "Hello, world." --server localhost:8000
 ```
 
-After `pip install -e .` the server is also available as a console script:
+The module form also works:
 
 ```bash
-distspec-server --model meta-llama/Llama-3.2-3B-Instruct
+python -m distspec.server.target_server --backend vllm --model gpt2
+```
+
+### Run the test suite
+
+```bash
+# CI-safe tests (unit + stat, no GPU, no model downloads):
+pytest -m "not slow and not vllm"
+
+# End-to-end with a tiny HuggingFace model (downloads sshleifer/tiny-gpt2):
+pytest -m slow
+
+# vLLM-backed tests (requires a CUDA GPU and the [vllm] extra):
+pytest -m vllm
 ```
 
 ## Architecture
@@ -87,8 +123,8 @@ distspec-server --model meta-llama/Llama-3.2-3B-Instruct
 │        ▼                      │  msgpack     │        ▼             │
 │ DraftClient (DEALER) ─────────┼──────────────▶ BaseVerifier         │
 │   + Adaptive K controller     │   ◀─────────  │   + RejectionSampler │
-│   + Fault-tolerant FSM        │              │   (HfVerifier now;   │
-│                               │              │    VllmVerifier later)│
+│   + Fault-tolerant FSM        │              │   (HfVerifier /      │
+│                               │              │    VllmVerifier)     │
 └───────────────────────────────┘              └──────────────────────┘
 ```
 
