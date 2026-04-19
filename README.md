@@ -98,6 +98,12 @@ distspec-server --backend vllm \
 distspec-client --prompt "Hello, world." --server localhost:8000
 ```
 
+The client exposes `--draft-method {ngram,suffix,eagle}` (with an optional
+`--draft-model` for EAGLE). See
+[docs/DRAFT_METHODS.md § CLI 사용법](./docs/DRAFT_METHODS.md#cli-사용법)
+for copy-paste commands per method and the Target↔Draft vocab
+compatibility table.
+
 Both are regular Python entry points, so the module form works too:
 
 ```bash

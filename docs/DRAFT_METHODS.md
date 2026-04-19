@@ -163,6 +163,87 @@ return DraftOutput(draft_tokens, draft_probs=stack(draft_probs),
 
 ---
 
+## CLI 사용법
+
+Draft 방식 선택은 **클라이언트 쪽 옵션**입니다. 서버(`distspec-server`)는 draft 가 어떻게 만들어졌는지 모르므로, 같은 서버를 띄워 둔 채 클라이언트의 `--draft-method` 만 바꿔 다시 실행하면 됩니다.
+
+### 공통 — 서버 기동
+
+```bash
+distspec-server \
+    --backend vllm \
+    --model gpt2 \
+    --listen-address 127.0.0.1:8000 \
+    --gpu-memory-utilization 0.5
+```
+
+### N-gram (기본값, 무모델)
+
+```bash
+distspec-client \
+    --prompt "a b a b a b a b" \
+    --server 127.0.0.1:8000 \
+    --tokenizer gpt2 \
+    --temperature 0 \
+    --max-tokens 20 \
+    --draft-method ngram
+```
+
+반복 패턴이 있으면 높은 수락률, 자연 텍스트에서는 draft 가 0 개가 되어 plain autoregressive 로 진행됩니다.
+
+### Suffix (무모델, 세션 내 suffix tree 누적)
+
+```bash
+distspec-client \
+    --prompt "a b a b a b a b" \
+    --server 127.0.0.1:8000 \
+    --tokenizer gpt2 \
+    --temperature 0 \
+    --max-tokens 20 \
+    --draft-method suffix
+```
+
+N-gram 과 달리 생성하는 동안 suffix tree 가 누적되므로, 긴 스트림에서 점차 유리해집니다.
+
+### EAGLE (draft 모델 필요, vocab 호환성 주의)
+
+```bash
+distspec-client \
+    --prompt "The quick brown fox" \
+    --server 127.0.0.1:8000 \
+    --tokenizer gpt2 \
+    --temperature 0 \
+    --max-tokens 20 \
+    --draft-method eagle \
+    --draft-model distilgpt2
+```
+
+- `--draft-model` 은 **target 과 같은 vocab** 이어야 합니다. Rejection sampling 은 동일 token id space 위에서만 수학적 정당성을 가집니다.
+- Target 이 `gpt2` 계열이면 `distilgpt2` / `gpt2` / `gpt2-medium` 중에서, target 이 `Llama-3.2-3B` 면 `Llama-3.2-1B` 같은 같은 계열 소형 모델을 쓰세요.
+- 클라이언트 프로세스에 draft 모델을 로드하므로 client 쪽 VRAM 이 필요합니다.
+
+### Target ↔ Draft 호환 예시
+
+| Target (서버) | 안전한 Draft (클라이언트) | 비고 |
+|---|---|---|
+| `gpt2` | `distilgpt2`, `gpt2-medium` | GPT-2 vocab |
+| `gpt2-large` | `distilgpt2` | 동일 vocab |
+| `meta-llama/Llama-3.2-3B` | `meta-llama/Llama-3.2-1B-Instruct` | Llama-3 vocab |
+| `Qwen/Qwen2.5-7B` | `Qwen/Qwen2.5-0.5B` | Qwen2.5 vocab |
+
+서로 다른 계열 (예: Target=gpt2, Draft=Llama) 을 섞으면 token id 가 달라서 거의 모든 draft 가 거절되어 SD 의 속도 이점이 사라집니다.
+
+### 기대되는 결과 비교
+
+| 시나리오 | Draft | α (수락률) | 서버 로그 예 |
+|---|---|---|---|
+| `"a b a b ..."` + N-gram | 3~10/step | 80–100% | `draft=10 accepted=10` |
+| `"The quick brown fox"` + N-gram | 0 | N/A | `draft=0 accepted=0 bonus=yes` |
+| 자연 텍스트 + EAGLE (vocab 호환) | 3~5/step | 40–70% | `draft=5 accepted=3 bonus=yes` |
+| 자연 텍스트 + EAGLE (vocab 불일치) | 3~5/step | ~0% | `draft=5 accepted=0 bonus=yes` |
+
+---
+
 ## References
 
 - Li, Y., et al. (2024). *EAGLE: Speculative Sampling Requires Rethinking Feature Uncertainty.* [[arXiv:2401.15077]](https://arxiv.org/abs/2401.15077)
