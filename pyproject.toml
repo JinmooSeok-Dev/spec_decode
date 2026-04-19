@@ -96,6 +96,7 @@ ignore = [
 "examples/*" = ["T20"]       # allow print() in demos
 "benchmarks/*" = ["T20"]
 "tests/*" = ["B017", "B905"]  # allow zip() without strict= in tests
+"src/distspec/server/vllm_verifier.py" = ["B905"]  # outputs aligned to inputs by vLLM contract
 
 [tool.ruff.lint.isort]
 known-first-party = ["distspec"]
@@ -108,6 +109,7 @@ asyncio_mode = "auto"
 markers = [
     "slow: long-running tests (excluded from default CI)",
     "gpu: tests requiring a CUDA GPU",
+    "vllm: tests that spin up a vLLM LLMEngine (GPU + model download)",
     "integration: end-to-end tests that spin up real models",
 ]
 filterwarnings = [
